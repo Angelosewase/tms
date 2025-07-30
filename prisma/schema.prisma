@@ -8,58 +8,789 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            String           @id @default(uuid())
-  email         String           @unique
-  password      String
-  firstName     String
-  lastName      String
-  phone         String?
-  avatar        String?
-  role          UserRole         @default(USER)
-  emailVerified Boolean          @default(false)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  businesses    BusinessMember[]
+// ============================================
+// USER MANAGEMENT & BUSINESS STRUCTURE
+// ============================================
+
+model UserRole {
+  id             String   @id @default(cuid())
+  roleCode       String   @unique @map("role_code")
+  roleName       String   @map("role_name")
+  description    String?
+  permissions    Json // Flexible permission storage
+  hierarchyLevel Int      @map("hierarchy_level") // 1=Owner, 2=Manager, 3=Employee, 4=Admin
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  users User[]
+
+  @@map("user_roles")
 }
 
 model Business {
-  id          String           @id @default(uuid())
+  id                  String  @id @default(cuid())
+  // Basic Information
+  businessName        String  @map("business_name")
+  legalName           String  @map("legal_name")
+  businessType        String  @map("business_type") // 'corporation', 'llc', 'partnership', 'sole_proprietorship'
+  industrySector      String? @map("industry_sector")
+  businessDescription String? @map("business_description")
+
+  // Registration Details
+  registrationNumber      String    @unique @map("registration_number")
+  taxIdentificationNumber String    @unique @map("tax_identification_number")
+  vatNumber               String?   @map("vat_number")
+  incorporationDate       DateTime? @map("incorporation_date") @db.Date
+  incorporationCountry    String    @map("incorporation_country")
+  incorporationState      String?   @map("incorporation_state")
+
+  // Contact Information
+  primaryAddress String  @map("primary_address")
+  city           String
+  stateProvince  String? @map("state_province")
+  postalCode     String  @map("postal_code")
+  country        String
+
+  // Communication
+  primaryPhone   String  @map("primary_phone")
+  secondaryPhone String? @map("secondary_phone")
+  primaryEmail   String  @map("primary_email")
+  websiteUrl     String? @map("website_url")
+
+  // Business Details
+  employeeCount   Int?     @map("employee_count")
+  annualRevenue   Decimal? @map("annual_revenue") @db.Decimal(15, 2)
+  currency        String   @default("USD")
+  establishedYear Int?     @map("established_year")
+
+  // Banking Information
+  primaryBankName      String? @map("primary_bank_name")
+  primaryAccountNumber String? @map("primary_account_number")
+  swiftCode            String? @map("swift_code")
+  iban                 String?
+
+  // Status & Verification
+  businessStatus     String    @default("active") @map("business_status") // 'active', 'suspended', 'inactive', 'pending_verification'
+  verificationStatus String    @default("pending") @map("verification_status") // 'pending', 'verified', 'rejected', 'expired'
+  verificationDate   DateTime? @map("verification_date")
+  verifiedBy         String?   @map("verified_by")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users             User[]
+  businessLicenses  BusinessLicense[]
+  businessDocuments BusinessDocument[]
+  tenders           Tender[]
+  bids              Bid[]
+  contracts         Contract[]
+  verifier          User?              @relation("BusinessVerifier", fields: [verifiedBy], references: [id])
+
+  @@map("businesses")
+}
+
+model User {
+  id           String  @id @default(cuid())
+  // Authentication
+  email        String  @unique
+  passwordHash String  @map("password_hash")
+  username     String? @unique
+
+  // Personal Information
+  firstName   String    @map("first_name")
+  middleName  String?   @map("middle_name")
+  lastName    String    @map("last_name")
+  dateOfBirth DateTime? @map("date_of_birth") @db.Date
+  gender      String?
+  nationality String?
+
+  // Contact Information
+  personalPhone         String? @map("personal_phone")
+  workPhone             String? @map("work_phone")
+  emergencyContactName  String? @map("emergency_contact_name")
+  emergencyContactPhone String? @map("emergency_contact_phone")
+
+  // Address Information
+  homeAddress    String? @map("home_address")
+  homeCity       String? @map("home_city")
+  homeState      String? @map("home_state")
+  homePostalCode String? @map("home_postal_code")
+  homeCountry    String? @map("home_country")
+
+  // Professional Information
+  employeeId         String?   @map("employee_id")
+  jobTitle           String?   @map("job_title")
+  department         String?
+  hireDate           DateTime? @map("hire_date") @db.Date
+  salary             Decimal?  @db.Decimal(12, 2)
+  employmentType     String?   @map("employment_type") // 'full_time', 'part_time', 'contract', 'consultant'
+  reportingManagerId String?   @map("reporting_manager_id")
+
+  // Business Association
+  businessId String @map("business_id")
+  roleId     String @map("role_id")
+
+  // Professional Qualifications
+  educationLevel             String?  @map("education_level")
+  professionalCertifications String[] @map("professional_certifications")
+  yearsOfExperience          Int?     @map("years_of_experience")
+  specializationAreas        String[] @map("specialization_areas")
+
+  // System Settings
+  preferredLanguage       String @default("en") @map("preferred_language")
+  timezone                String @default("UTC")
+  notificationPreferences Json   @default("{\"email\": true, \"sms\": false, \"push\": true}") @map("notification_preferences")
+
+  // Account Status
+  isActive            Boolean   @default(true) @map("is_active")
+  emailVerified       Boolean   @default(false) @map("email_verified")
+  phoneVerified       Boolean   @default(false) @map("phone_verified")
+  accountLocked       Boolean   @default(false) @map("account_locked")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lastLogin           DateTime? @map("last_login")
+  passwordChangedAt   DateTime  @default(now()) @map("password_changed_at")
+
+  // Metadata
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  business         Business @relation(fields: [businessId], references: [id])
+  role             UserRole @relation(fields: [roleId], references: [id])
+  reportingManager User?    @relation("UserManager", fields: [reportingManagerId], references: [id])
+  directReports    User[]   @relation("UserManager")
+  creator          User?    @relation("UserCreator", fields: [createdBy], references: [id])
+  createdUsers     User[]   @relation("UserCreator")
+
+  // Document & License Relations
+  userDocuments        UserDocument[]
+  uploadedBusinessDocs BusinessDocument[] @relation("DocumentUploader")
+  approvedBusinessDocs BusinessDocument[] @relation("DocumentApprover")
+  uploadedLicenses     BusinessLicense[]  @relation("LicenseUploader")
+  verifiedLicenses     BusinessLicense[]  @relation("LicenseVerifier")
+
+  // Activity & Notifications
+  activityLogs      ActivityLog[]
+  userNotifications UserNotification[]
+
+  // Tender Management
+  createdTenders        Tender[]              @relation("TenderCreator")
+  submittedBids         Bid[]                 @relation("BidSubmitter")
+  evaluations           Evaluation[]
+  committeeMembers      CommitteeMember[]
+  chairpersonCommittees EvaluationCommittee[] @relation("CommitteeChairperson")
+
+  // Clarifications & Communication
+  askedClarifications    Clarification[] @relation("ClarificationAsker")
+  answeredClarifications Clarification[] @relation("ClarificationAnswerer")
+
+  // Business verification
+  verifiedBusinesses   Business[]       @relation("BusinessVerifier")
+  BidDocument          BidDocument[]
+  UserDocument         UserDocument[]   @relation("DocumentVerifier")
+  UserDocumentUploader UserDocument[]   @relation("DocumentUploader")
+  TenderDocument       TenderDocument[] @relation("TenderDocumentUploader")
+  UserPermission       UserPermission[] @relation("PermissionGranter")
+
+  UserPermissionGrantee  UserPermission[]
+  TenderDocumentRelation TenderDocument[]
+  BidDocumentRelation    BidDocument[]    @relation("BidDocumentUploader")
+
+  @@map("users")
+}
+
+// ============================================
+// LICENSE & DOCUMENT MANAGEMENT
+// ============================================
+
+model LicenseType {
+  id                   String   @id @default(cuid())
+  licenseCode          String   @unique @map("license_code")
+  licenseName          String   @map("license_name")
+  description          String?
+  issuingAuthority     String?  @map("issuing_authority")
+  validityPeriodMonths Int?     @map("validity_period_months") // NULL for permanent licenses
+  isMandatory          Boolean  @default(false) @map("is_mandatory")
+  businessTypeRequired String?  @map("business_type_required") // Which business types need this
+  industrySpecific     Boolean  @default(false) @map("industry_specific")
+  countrySpecific      String?  @map("country_specific") // NULL for international
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  // Relations
+  businessLicenses BusinessLicense[]
+
+  @@map("license_types")
+}
+
+model BusinessLicense {
+  id            String @id @default(cuid())
+  businessId    String @map("business_id")
+  licenseTypeId String @map("license_type_id")
+
+  // License Details
+  licenseNumber    String  @map("license_number")
+  licenseName      String? @map("license_name")
+  issuingAuthority String  @map("issuing_authority")
+  issuingCountry   String? @map("issuing_country")
+  issuingState     String? @map("issuing_state")
+
+  // Validity
+  issueDate       DateTime  @map("issue_date") @db.Date
+  expiryDate      DateTime? @map("expiry_date") @db.Date
+  isPermanent     Boolean   @default(false) @map("is_permanent")
+  renewalRequired Boolean   @default(true) @map("renewal_required")
+
+  // Status
+  status             String @default("active") @map("status") // 'active', 'expired', 'suspended', 'revoked', 'pending_renewal'
+  verificationStatus String @default("pending") @map("verification_status") // 'pending', 'verified', 'rejected'
+
+  // Document Information
+  documentFilePath String? @map("document_file_path")
+  documentFileName String? @map("document_file_name")
+  documentSize     Int?    @map("document_size") // in bytes
+  documentMimeType String? @map("document_mime_type")
+  documentHash     String? @map("document_hash") // for integrity verification
+
+  // Additional Details
+  scopeOfWork            String?  @map("scope_of_work")
+  conditionsRestrictions String?  @map("conditions_restrictions")
+  renewalCost            Decimal? @map("renewal_cost") @db.Decimal(10, 2)
+  renewalCurrency        String?  @map("renewal_currency")
+
+  // Management
+  uploadedBy          String?   @map("uploaded_by")
+  verifiedBy          String?   @map("verified_by")
+  verifiedAt          DateTime? @map("verified_at")
+  lastVerifiedAt      DateTime? @map("last_verified_at")
+  nextVerificationDue DateTime? @map("next_verification_due") @db.Date
+
+  // Notifications
+  renewalNotificationSent Boolean @default(false) @map("renewal_notification_sent")
+  expiryWarningSent       Boolean @default(false) @map("expiry_warning_sent")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  business    Business    @relation(fields: [businessId], references: [id])
+  licenseType LicenseType @relation(fields: [licenseTypeId], references: [id])
+  uploader    User?       @relation("LicenseUploader", fields: [uploadedBy], references: [id])
+  verifier    User?       @relation("LicenseVerifier", fields: [verifiedBy], references: [id])
+
+  @@unique([businessId, licenseTypeId, licenseNumber])
+  @@map("business_licenses")
+}
+
+model UserDocument {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  // Document Classification
+  documentType     String @map("document_type") // 'id_card', 'passport', 'driver_license', 'degree', 'certificate', 'cv', 'contract'
+  documentCategory String @map("document_category") // 'identification', 'education', 'professional', 'employment', 'other'
+
+  // Document Details
+  documentName     String    @map("document_name")
+  documentNumber   String?   @map("document_number")
+  issuingAuthority String?   @map("issuing_authority")
+  issueDate        DateTime? @map("issue_date") @db.Date
+  expiryDate       DateTime? @map("expiry_date") @db.Date
+
+  // File Information
+  filePath String  @map("file_path")
+  fileName String  @map("file_name")
+  fileSize Int     @map("file_size")
+  mimeType String  @map("mime_type")
+  fileHash String? @map("file_hash")
+
+  // Status & Verification
+  status            String    @default("active") @map("status") // 'active', 'expired', 'replaced', 'invalid'
+  isVerified        Boolean   @default(false) @map("is_verified")
+  verifiedBy        String?   @map("verified_by")
+  verifiedAt        DateTime? @map("verified_at")
+  verificationNotes String?   @map("verification_notes")
+
+  // Access Control
+  isConfidential Boolean @default(false) @map("is_confidential")
+  accessLevel    String  @default("user") @map("access_level") // 'user', 'manager', 'owner', 'admin'
+
+  // Metadata
+  uploadedBy String?  @map("uploaded_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user     User  @relation(fields: [userId], references: [id])
+  verifier User? @relation("DocumentVerifier", fields: [verifiedBy], references: [id])
+  uploader User? @relation("DocumentUploader", fields: [uploadedBy], references: [id])
+
+  @@map("user_documents")
+}
+
+model BusinessDocument {
+  id         String @id @default(cuid())
+  businessId String @map("business_id")
+
+  // Document Classification
+  documentType     String @map("document_type") // 'certificate', 'contract', 'policy', 'procedure', 'financial', 'legal'
+  documentCategory String @map("document_category") // 'incorporation', 'financial', 'legal', 'operational', 'compliance'
+
+  // Document Details
+  documentName        String  @map("document_name")
+  documentDescription String? @map("document_description")
+  documentVersion     String  @default("1.0") @map("document_version")
+
+  // File Information
+  filePath String  @map("file_path")
+  fileName String  @map("file_name")
+  fileSize Int     @map("file_size")
+  mimeType String  @map("mime_type")
+  fileHash String? @map("file_hash")
+
+  // Validity & Status
+  effectiveDate DateTime? @map("effective_date") @db.Date
+  expiryDate    DateTime? @map("expiry_date") @db.Date
+  status        String    @default("active") @map("status") // 'active', 'draft', 'expired', 'superseded', 'archived'
+
+  // Access & Security
+  confidentialityLevel String   @default("internal") @map("confidentiality_level") // 'public', 'internal', 'confidential', 'restricted'
+  accessRoles          String[] @map("access_roles") // Array of role codes that can access this document
+
+  // Management
+  uploadedBy String    @map("uploaded_by")
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  business Business @relation(fields: [businessId], references: [id])
+  uploader User     @relation("DocumentUploader", fields: [uploadedBy], references: [id])
+  approver User?    @relation("DocumentApprover", fields: [approvedBy], references: [id])
+
+  @@map("business_documents")
+}
+
+// ============================================
+// USER PERMISSIONS & ACCESS CONTROL
+// ============================================
+
+model UserPermission {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+
+  // Tender Permissions
+  canCreateTenders  Boolean @default(false) @map("can_create_tenders")
+  canEditOwnTenders Boolean @default(false) @map("can_edit_own_tenders")
+  canEditAllTenders Boolean @default(false) @map("can_edit_all_tenders")
+  canDeleteTenders  Boolean @default(false) @map("can_delete_tenders")
+  canApproveTenders Boolean @default(false) @map("can_approve_tenders")
+  canPublishTenders Boolean @default(false) @map("can_publish_tenders")
+
+  // Bid Permissions
+  canCreateBids   Boolean @default(false) @map("can_create_bids")
+  canEditOwnBids  Boolean @default(false) @map("can_edit_own_bids")
+  canEditAllBids  Boolean @default(false) @map("can_edit_all_bids")
+  canSubmitBids   Boolean @default(false) @map("can_submit_bids")
+  canWithdrawBids Boolean @default(false) @map("can_withdraw_bids")
+
+  // Evaluation Permissions
+  canEvaluateBids       Boolean @default(false) @map("can_evaluate_bids")
+  canViewEvaluations    Boolean @default(false) @map("can_view_evaluations")
+  canApproveEvaluations Boolean @default(false) @map("can_approve_evaluations")
+
+  // Contract Permissions
+  canCreateContracts  Boolean @default(false) @map("can_create_contracts")
+  canEditContracts    Boolean @default(false) @map("can_edit_contracts")
+  canSignContracts    Boolean @default(false) @map("can_sign_contracts")
+  canApproveContracts Boolean @default(false) @map("can_approve_contracts")
+
+  // Document Permissions
+  canUploadDocuments Boolean @default(false) @map("can_upload_documents")
+  canVerifyDocuments Boolean @default(false) @map("can_verify_documents")
+  canApproveLicenses Boolean @default(false) @map("can_approve_licenses")
+
+  // User Management Permissions
+  canCreateUsers     Boolean @default(false) @map("can_create_users")
+  canEditUsers       Boolean @default(false) @map("can_edit_users")
+  canDeactivateUsers Boolean @default(false) @map("can_deactivate_users")
+  canViewAllUsers    Boolean @default(false) @map("can_view_all_users")
+
+  // Reporting Permissions
+  canViewReports   Boolean @default(false) @map("can_view_reports")
+  canExportData    Boolean @default(false) @map("can_export_data")
+  canViewAuditLogs Boolean @default(false) @map("can_view_audit_logs")
+
+  // Financial Permissions
+  canViewFinancialData Boolean @default(false) @map("can_view_financial_data")
+  canApprovePayments   Boolean @default(false) @map("can_approve_payments")
+
+  // Special Permissions
+  isSuperAdmin         Boolean @default(false) @map("is_super_admin")
+  canModifyPermissions Boolean @default(false) @map("can_modify_permissions")
+
+  // Metadata
+  grantedBy String?  @map("granted_by")
+  grantedAt DateTime @default(now()) @map("granted_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user    User  @relation(fields: [userId], references: [id])
+  granter User? @relation("PermissionGranter", fields: [grantedBy], references: [id])
+
+  @@map("user_permissions")
+}
+
+// ============================================
+// TENDER MANAGEMENT
+// ============================================
+
+model Category {
+  id          String   @id @default(cuid())
   name        String
+  code        String?  @unique
   description String?
-  logo        String?
-  website     String?
-  tin         String?
-  address     String?
-  city        String?
-  country     String?
-  postalCode  String?
-  phone       String?
-  email       String?
-  isVerified  Boolean          @default(false)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  members     BusinessMember[]
+  parentId    String?  @map("parent_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  tenders  Tender[]
+
+  @@map("categories")
 }
 
-model BusinessMember {
-  id         String       @id @default(uuid())
-  userId     String
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  businessId String
-  business   Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  role       BusinessRole @default(BUSINESS_MANAGER)
-  joinedAt   DateTime     @default(now())
+model Tender {
+  id           String  @id @default(cuid())
+  tenderNumber String  @unique @map("tender_number")
+  title        String
+  description  String?
+  categoryId   String? @map("category_id")
+  businessId   String  @map("business_id")
+  createdBy    String  @map("created_by")
 
-  @@unique([userId, businessId])
+  // Tender Details
+  tenderType        String   @map("tender_type") // 'open', 'restricted', 'negotiated'
+  procurementMethod String?  @map("procurement_method") // 'lowest_price', 'best_value', 'technical_merit'
+  estimatedValue    Decimal? @map("estimated_value") @db.Decimal(15, 2)
+  currency          String   @default("USD")
+
+  // Timeline
+  publicationDate    DateTime? @map("publication_date")
+  submissionDeadline DateTime  @map("submission_deadline")
+  openingDate        DateTime? @map("opening_date")
+  evaluationPeriod   Int?      @map("evaluation_period") // days
+  awardDate          DateTime? @map("award_date")
+
+  // Status
+  status String @default("draft") @map("status") // 'draft', 'published', 'closed', 'under_evaluation', 'awarded', 'cancelled'
+
+  // Requirements
+  minimumRequirements String? @map("minimum_requirements")
+  evaluationCriteria  Json?   @map("evaluation_criteria")
+  requiredDocuments   Json?   @map("required_documents")
+
+  // Terms
+  contractDuration Int?    @map("contract_duration") // months
+  paymentTerms     String? @map("payment_terms")
+  deliveryTerms    String? @map("delivery_terms")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  category               Category?             @relation(fields: [categoryId], references: [id])
+  business               Business              @relation(fields: [businessId], references: [id])
+  creator                User                  @relation("TenderCreator", fields: [createdBy], references: [id])
+  tenderItems            TenderItem[]
+  tenderDocuments        TenderDocument[]
+  bids                   Bid[]
+  evaluationCommittees   EvaluationCommittee[]
+  evaluationCriteriaList EvaluationCriterion[]
+  clarifications         Clarification[]
+  contracts              Contract[]
+
+  @@map("tenders")
 }
 
-enum UserRole {
-  ADMIN
-  USER
+model TenderItem {
+  id                 String   @id @default(cuid())
+  tenderId           String   @map("tender_id")
+  itemNumber         String?  @map("item_number")
+  description        String
+  quantity           Decimal? @db.Decimal(10, 3)
+  unit               String?
+  specifications     Json?
+  estimatedUnitPrice Decimal? @map("estimated_unit_price") @db.Decimal(12, 2)
+  isMandatory        Boolean  @default(true) @map("is_mandatory")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tender   Tender    @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  bidItems BidItem[]
+
+  @@map("tender_items")
 }
 
-enum BusinessRole {
-  OWNER
-  BUSINESS_MANAGER
+model TenderDocument {
+  id           String   @id @default(cuid())
+  tenderId     String   @map("tender_id")
+  documentName String   @map("document_name")
+  documentType String?  @map("document_type") // 'specification', 'drawing', 'terms', 'amendment'
+  filePath     String?  @map("file_path")
+  fileSize     Int?     @map("file_size")
+  mimeType     String?  @map("mime_type")
+  isMandatory  Boolean  @default(false) @map("is_mandatory")
+  uploadedBy   String?  @map("uploaded_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tender   Tender  @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  uploader User?   @relation("TenderDocumentUploader", fields: [uploadedBy], references: [id])
+  User     User?   @relation(fields: [userId], references: [id])
+  userId   String?
+
+  @@map("tender_documents")
+}
+
+// ============================================
+// BIDDING PROCESS
+// ============================================
+
+model Bid {
+  id          String @id @default(cuid())
+  tenderId    String @map("tender_id")
+  bidderId    String @map("bidder_id")
+  submittedBy String @map("submitted_by")
+
+  // Bid Details
+  bidNumber      String  @unique @map("bid_number")
+  totalAmount    Decimal @map("total_amount") @db.Decimal(15, 2)
+  currency       String  @default("USD")
+  validityPeriod Int?    @map("validity_period") // days
+
+  // Status
+  status         String    @default("draft") @map("status") // 'draft', 'submitted', 'withdrawn', 'disqualified', 'accepted', 'rejected'
+  submissionDate DateTime? @map("submission_date")
+
+  // Technical Details
+  technicalScore Decimal? @map("technical_score") @db.Decimal(5, 2)
+  financialScore Decimal? @map("financial_score") @db.Decimal(5, 2)
+  totalScore     Decimal? @map("total_score") @db.Decimal(5, 2)
+
+  // Compliance
+  isCompliant     Boolean? @map("is_compliant")
+  complianceNotes String?  @map("compliance_notes")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tender       Tender        @relation(fields: [tenderId], references: [id])
+  bidder       Business      @relation(fields: [bidderId], references: [id])
+  submitter    User          @relation("BidSubmitter", fields: [submittedBy], references: [id])
+  bidItems     BidItem[]
+  bidDocuments BidDocument[]
+  evaluations  Evaluation[]
+  contracts    Contract[]
+
+  @@map("bids")
+}
+
+model BidItem {
+  id           String  @id @default(cuid())
+  bidId        String  @map("bid_id")
+  tenderItemId String? @map("tender_item_id")
+
+  // Item Details
+  description String?
+  quantity    Decimal? @db.Decimal(10, 3)
+  unitPrice   Decimal? @map("unit_price") @db.Decimal(12, 2)
+  totalPrice  Decimal? @map("total_price") @db.Decimal(15, 2)
+
+  // Specifications
+  specifications Json?
+  deliveryTime   Int?  @map("delivery_time") // days
+  warrantyPeriod Int?  @map("warranty_period") // months
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bid        Bid         @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  tenderItem TenderItem? @relation(fields: [tenderItemId], references: [id])
+
+  @@map("bid_items")
+}
+
+model BidDocument {
+  id           String   @id @default(cuid())
+  bidId        String   @map("bid_id")
+  documentName String   @map("document_name")
+  documentType String?  @map("document_type") // 'technical', 'financial', 'legal', 'certificate'
+  filePath     String?  @map("file_path")
+  fileSize     Int?     @map("file_size")
+  mimeType     String?  @map("mime_type")
+  uploadedBy   String?  @map("uploaded_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bid      Bid     @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  uploader User?   @relation("BidDocumentUploader", fields: [uploadedBy], references: [id])
+  User     User?   @relation(fields: [userId], references: [id])
+  userId   String?
+
+  @@map("bid_documents")
+}
+
+// ============================================
+// EVALUATION & COMMITTEES
+// ============================================
+
+model EvaluationCriterion {
+  id        String   @id @default(cuid())
+  tenderId  String   @map("tender_id")
+  criterion String
+  weight    Float? // percentage weight for scoring
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tender Tender @relation(fields: [tenderId], references: [id])
+
+  @@map("evaluation_criteria_list")
+}
+
+model EvaluationCommittee {
+  id            String   @id @default(cuid())
+  tenderId      String   @map("tender_id")
+  name          String?
+  chairpersonId String?  @map("chairperson_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tender      Tender            @relation(fields: [tenderId], references: [id])
+  chairperson User?             @relation("CommitteeChairperson", fields: [chairpersonId], references: [id])
+  members     CommitteeMember[]
+
+  @@map("evaluation_committees")
+}
+
+model CommitteeMember {
+  id          String   @id @default(cuid())
+  committeeId String   @map("committee_id")
+  userId      String   @map("user_id")
+  role        String? // e.g. 'member', 'observer'
+  joinedAt    DateTime @default(now()) @map("joined_at")
+
+  // Relations
+  committee EvaluationCommittee @relation(fields: [committeeId], references: [id])
+  user      User                @relation(fields: [userId], references: [id])
+
+  @@map("committee_members")
+}
+
+model Evaluation {
+  id          String   @id @default(cuid())
+  bidId       String   @map("bid_id")
+  evaluatorId String   @map("evaluator_id")
+  score       Decimal? @db.Decimal(5, 2)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bid       Bid  @relation(fields: [bidId], references: [id])
+  evaluator User @relation(fields: [evaluatorId], references: [id])
+
+  @@map("evaluations")
+}
+
+// ============================================
+// CLARIFICATIONS & Q&A
+// ============================================
+
+model Clarification {
+  id         String    @id @default(cuid())
+  tenderId   String    @map("tender_id")
+  question   String
+  answer     String?
+  askerId    String    @map("asker_id")
+  answererId String?   @map("answerer_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  answeredAt DateTime? @map("answered_at")
+
+  // Relations
+  tender   Tender @relation(fields: [tenderId], references: [id])
+  asker    User   @relation("ClarificationAsker", fields: [askerId], references: [id])
+  answerer User?  @relation("ClarificationAnswerer", fields: [answererId], references: [id])
+
+  @@map("clarifications")
+}
+
+// ============================================
+// CONTRACTS & AWARDS
+// ============================================
+
+model Contract {
+  id             String    @id @default(cuid())
+  tenderId       String    @map("tender_id")
+  bidId          String    @map("bid_id")
+  contractNumber String    @unique @map("contract_number")
+  totalAmount    Decimal   @map("total_amount") @db.Decimal(15, 2)
+  currency       String    @default("USD")
+  startDate      DateTime  @map("start_date") @db.Date
+  endDate        DateTime? @map("end_date") @db.Date
+  status         String    @default("draft") // 'draft', 'signed', 'active', 'completed', 'terminated'
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  tender     Tender    @relation(fields: [tenderId], references: [id])
+  bid        Bid       @relation(fields: [bidId], references: [id])
+  Business   Business? @relation(fields: [businessId], references: [id])
+  businessId String?
+
+  @@map("contracts")
+}
+
+// ============================================
+// ACTIVITY LOG & USER NOTIFICATIONS
+// ============================================
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  action      String // e.g., 'LOGIN', 'CREATE_TENDER', 'SUBMIT_BID'
+  description String? // optional human-readable details
+  metadata    Json? // additional context (IP address, user agent, etc.)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("activity_logs")
+}
+
+model UserNotification {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  type      String // e.g., 'INFO', 'WARNING', 'ALERT'
+  message   String // notification content
+  isRead    Boolean   @default(false) @map("is_read")
+  createdAt DateTime  @default(now()) @map("created_at")
+  readAt    DateTime? @map("read_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@map("user_notifications")
 }
