@@ -99,7 +99,7 @@ export default function LoginPage() {
                                     variant="link"
                                     size="sm">
                                     <Link
-                                        href="/auth/forgot-password"
+                                        href="/forgot-password"
                                         className="link intent-info variant-ghost text-sm">
                                         Forgot your Password ?
                                     </Link>
@@ -125,7 +125,7 @@ export default function LoginPage() {
                             asChild
                             variant="link"
                             className="px-2">
-                            <Link href="/auth/register">Create account</Link>
+                            <Link href="/register">Create account</Link>
                         </Button>
                     </p>
                 </div>

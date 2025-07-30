@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
                             asChild
                             variant="link"
                             className="px-2">
-                            <Link href="/auth/login">Log in</Link>
+                            <Link href="/login">Log in</Link>
                         </Button>
                     </p>
                 </div>
