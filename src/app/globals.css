@@ -192,7 +192,7 @@
   --chart-3: oklch(0.65 0.15 260); /* Purple-blue */
   --chart-4: oklch(0.7 0.1 200); /* Light blue */
   --chart-5: oklch(0.4 0.2 250); /* Deep blue */
-  --sidebar: oklch(0.98 0.005 240); /* Very light blue sidebar */
+  --sidebar: oklch(0.968 0.007 247.896); /* Very light blue sidebar */
   --sidebar-foreground: oklch(0.2 0.05 240); /* Dark blue sidebar text */
   --sidebar-primary: oklch(0.55 0.2 240); /* Blue sidebar primary */
   --sidebar-primary-foreground: oklch(1 0 0); /* White sidebar primary text */

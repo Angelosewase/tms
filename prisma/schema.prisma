@@ -8,10 +8,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// USER MANAGEMENT & BUSINESS STRUCTURE
-// ============================================
-
 model UserRole {
   id             String   @id @default(cuid())
   roleCode       String   @unique @map("role_code")
@@ -202,10 +198,6 @@ model User {
   @@map("users")
 }
 
-// ============================================
-// LICENSE & DOCUMENT MANAGEMENT
-// ============================================
-
 model LicenseType {
   id                   String   @id @default(cuid())
   licenseCode          String   @unique @map("license_code")
@@ -377,9 +369,6 @@ model BusinessDocument {
   @@map("business_documents")
 }
 
-// ============================================
-// USER PERMISSIONS & ACCESS CONTROL
-// ============================================
 
 model UserPermission {
   id     String @id @default(cuid())
@@ -446,10 +435,6 @@ model UserPermission {
 
   @@map("user_permissions")
 }
-
-// ============================================
-// TENDER MANAGEMENT
-// ============================================
 
 model Category {
   id          String   @id @default(cuid())
@@ -561,9 +546,6 @@ model TenderDocument {
   @@map("tender_documents")
 }
 
-// ============================================
-// BIDDING PROCESS
-// ============================================
 
 model Bid {
   id          String @id @default(cuid())
@@ -651,9 +633,6 @@ model BidDocument {
   @@map("bid_documents")
 }
 
-// ============================================
-// EVALUATION & COMMITTEES
-// ============================================
 
 model EvaluationCriterion {
   id        String   @id @default(cuid())
@@ -712,10 +691,6 @@ model Evaluation {
   @@map("evaluations")
 }
 
-// ============================================
-// CLARIFICATIONS & Q&A
-// ============================================
-
 model Clarification {
   id         String    @id @default(cuid())
   tenderId   String    @map("tender_id")
@@ -733,10 +708,6 @@ model Clarification {
 
   @@map("clarifications")
 }
-
-// ============================================
-// CONTRACTS & AWARDS
-// ============================================
 
 model Contract {
   id             String    @id @default(cuid())
@@ -760,16 +731,12 @@ model Contract {
   @@map("contracts")
 }
 
-// ============================================
-// ACTIVITY LOG & USER NOTIFICATIONS
-// ============================================
-
 model ActivityLog {
   id          String   @id @default(cuid())
   userId      String   @map("user_id")
-  action      String // e.g., 'LOGIN', 'CREATE_TENDER', 'SUBMIT_BID'
-  description String? // optional human-readable details
-  metadata    Json? // additional context (IP address, user agent, etc.)
+  action      String
+  description String?
+  metadata    Json?
   createdAt   DateTime @default(now()) @map("created_at")
 
   // Relations

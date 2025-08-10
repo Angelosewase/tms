@@ -215,7 +215,7 @@ export const RegistrationForm = () => {
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            Join Tender Management Platform
+            Join Tendra
           </h1>
           <p className="text-muted-foreground">
             Create your account to start participating in tenders
