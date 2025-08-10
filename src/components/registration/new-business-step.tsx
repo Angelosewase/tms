@@ -57,7 +57,7 @@ export const NewBusinessStep = ({
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md lg:max-w-2xl mx-auto">
       <CardHeader className="text-center pb-6">
         <CardTitle className="text-2xl font-bold text-foreground">
           Create New Business
@@ -110,7 +110,6 @@ export const NewBusinessStep = ({
             onChange={(value: string) =>
               updateField("registrationNumber", value)
             }
-            required
             error={errors.registrationNumber}
           />
           <FormInput
@@ -119,7 +118,6 @@ export const NewBusinessStep = ({
             placeholder="TAX789012"
             value={data.taxId}
             onChange={(value: string) => updateField("taxId", value)}
-            required
             error={errors.taxId}
           />
         </div>
@@ -130,7 +128,6 @@ export const NewBusinessStep = ({
           placeholder="123 Business Street"
           value={data.address}
           onChange={(value: string) => updateField("address", value)}
-          required
           error={errors.address}
         />
 
@@ -141,7 +138,6 @@ export const NewBusinessStep = ({
             placeholder="New York"
             value={data.city}
             onChange={(value: string) => updateField("city", value)}
-            required
             error={errors.city}
           />
           <FormInput
@@ -150,7 +146,6 @@ export const NewBusinessStep = ({
             placeholder="United States"
             value={data.country}
             onChange={(value: string) => updateField("country", value)}
-            required
             error={errors.country}
           />
         </div>

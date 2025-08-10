@@ -8,15 +8,20 @@ export async function middleware(req: NextRequest) {
 
   const isAuth = Boolean(token);
   const isAuthPage = req.nextUrl.pathname.startsWith("/login");
+  const isRegisterPage = req.nextUrl.pathname.startsWith("/register");
 
   if (isAuthPage && isAuth) {
-    // Already logged in, redirect away from login
     const url = req.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
-  // For protected routes, require auth
+  if (isRegisterPage && isAuth) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
   const protectedPaths = [
     "/admin",
     "/employee",
@@ -29,7 +34,10 @@ export async function middleware(req: NextRequest) {
     if (!isAuth) {
       const url = req.nextUrl.clone();
       url.pathname = "/login";
-      url.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
+      url.searchParams.set(
+        "callbackUrl",
+        req.nextUrl.pathname + req.nextUrl.search
+      );
       return NextResponse.redirect(url);
     }
   }
@@ -40,6 +48,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/login",
+    "/register",
     "/admin/:path*",
     "/employee/:path*",
     "/manager/:path*",

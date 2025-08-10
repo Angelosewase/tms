@@ -25,7 +25,7 @@ export const ExistingBusinessStep = ({
   const selected = businesses.find(b => b.id === selectedBusiness);
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md lg:max-w-2xl mx-auto">
       <CardHeader className="text-center pb-6">
         <CardTitle className="text-2xl font-bold text-foreground">Select Business</CardTitle>
         <CardDescription className="text-muted-foreground">

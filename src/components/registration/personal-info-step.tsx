@@ -7,6 +7,8 @@ interface PersonalInfo {
   email: string;
   phone: string;
   position: string;
+  password: string;
+  confirmPassword: string;
 }
 
 interface PersonalInfoStepProps {
@@ -21,7 +23,7 @@ export const PersonalInfoStep = ({ data, onChange, errors }: PersonalInfoStepPro
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md lg:max-w-2xl mx-auto">
       <CardHeader className="text-center pb-6">
         <CardTitle className="text-2xl font-bold text-foreground">Personal Information</CardTitle>
         <CardDescription className="text-muted-foreground">
@@ -78,6 +80,29 @@ export const PersonalInfoStep = ({ data, onChange, errors }: PersonalInfoStepPro
           required
           error={errors.position}
         />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormInput
+            id="password"
+            label="Password"
+            type="password"
+            placeholder="Enter a strong password"
+            value={data.password}
+            onChange={(value) => updateField("password", value)}
+            required
+            error={errors.password}
+          />
+          <FormInput
+            id="confirmPassword"
+            label="Confirm Password"
+            type="password"
+            placeholder="Re-enter your password"
+            value={data.confirmPassword}
+            onChange={(value) => updateField("confirmPassword", value)}
+            required
+            error={errors.confirmPassword}
+          />
+        </div>
       </CardContent>
     </Card>
   );

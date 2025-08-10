@@ -9,7 +9,7 @@ interface BusinessSelectionStepProps {
 
 export const BusinessSelectionStep = ({ onSelectExisting, onCreateNew }: BusinessSelectionStepProps) => {
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md lg:max-w-2xl mx-auto">
       <CardHeader className="text-center pb-6">
         <CardTitle className="text-2xl font-bold text-foreground">Business Setup</CardTitle>
         <CardDescription className="text-muted-foreground">

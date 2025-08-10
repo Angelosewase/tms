@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ProgressSteps } from "./progress-steps";
 import { PersonalInfoStep } from "./personal-info-step";
@@ -15,6 +15,8 @@ interface PersonalInfo {
   email: string;
   phone: string;
   position: string;
+  password: string;
+  confirmPassword: string;
 }
 
 interface BusinessInfo {
@@ -58,6 +60,8 @@ export const RegistrationForm = () => {
     email: "",
     phone: "",
     position: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo>({
@@ -78,6 +82,88 @@ export const RegistrationForm = () => {
   const [businessErrors, setBusinessErrors] = useState<Partial<BusinessInfo>>(
     {}
   );
+
+  const savingRef = useRef(false);
+  const localStorageKey = "registrationDraft";
+
+  const saveDraftLocal = useCallback(() => {
+    try {
+      const draft = {
+        step: currentStep,
+        businessFlow,
+        personalInfo,
+        businessInfo,
+        selectedBusiness,
+      };
+      localStorage.setItem(localStorageKey, JSON.stringify(draft));
+    } catch (_) {}
+  }, [currentStep, businessFlow, personalInfo, businessInfo, selectedBusiness]);
+
+  const saveDraftServer = useCallback(async () => {
+    if (!personalInfo.email || savingRef.current) return;
+    savingRef.current = true;
+    try {
+      await fetch("/api/register/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: personalInfo.email,
+          step: currentStep,
+          businessFlow,
+          personalInfo,
+          businessInfo,
+          selectedBusinessId: businessFlow === "existing" ? selectedBusiness : null,
+        }),
+      });
+    } catch (_) {
+      // ignore
+    } finally {
+      savingRef.current = false;
+    }
+  }, [personalInfo.email, currentStep, businessFlow, personalInfo, businessInfo, selectedBusiness]);
+
+  // Load draft on mount (server by email param, else local)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const emailParam = params.get("email");
+    const load = async () => {
+      try {
+        if (emailParam) {
+          const res = await fetch(`/api/register/draft?email=${encodeURIComponent(emailParam)}`);
+          const json = await res.json();
+          if (json?.draft) {
+            const d = json.draft;
+            setCurrentStep(d.step || 1);
+            setBusinessFlow(d.businessFlow ?? null);
+            if (d.personalInfo) setPersonalInfo((p) => ({ ...p, ...d.personalInfo }));
+            if (d.businessInfo) setBusinessInfo((b) => ({ ...b, ...d.businessInfo }));
+            if (d.selectedBusinessId) setSelectedBusiness(d.selectedBusinessId);
+            return;
+          }
+        }
+        const local = localStorage.getItem(localStorageKey);
+        if (local) {
+          const d = JSON.parse(local);
+          if (d.step) setCurrentStep(d.step);
+          if (d.businessFlow) setBusinessFlow(d.businessFlow);
+          if (d.personalInfo) setPersonalInfo((p) => ({ ...p, ...d.personalInfo }));
+          if (d.businessInfo) setBusinessInfo((b) => ({ ...b, ...d.businessInfo }));
+          if (d.selectedBusiness) setSelectedBusiness(d.selectedBusiness);
+        }
+      } catch (_) {}
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autosave on key changes
+  useEffect(() => {
+    saveDraftLocal();
+    const t = setTimeout(() => {
+      saveDraftServer();
+    }, 400);
+    return () => clearTimeout(t);
+  }, [saveDraftLocal, saveDraftServer]);
 
   const stepLabels =
     businessFlow === "existing"
@@ -100,6 +186,13 @@ export const RegistrationForm = () => {
       errors.email = "Email is invalid";
     if (!personalInfo.phone.trim()) errors.phone = "Phone number is required";
     if (!personalInfo.position.trim()) errors.position = "Position is required";
+    if (!personalInfo.password.trim()) errors.password = "Password is required";
+    else if (personalInfo.password.length < 8)
+      errors.password = "Password must be at least 8 characters";
+    if (!personalInfo.confirmPassword.trim())
+      errors.confirmPassword = "Please confirm your password";
+    else if (personalInfo.password !== personalInfo.confirmPassword)
+      errors.confirmPassword = "Passwords do not match";
 
     setPersonalErrors(errors);
     return Object.keys(errors).length === 0;
@@ -114,15 +207,6 @@ export const RegistrationForm = () => {
 
     if (!businessInfo.companyName.trim())
       errors.companyName = "Company name is required";
-    if (!businessInfo.industry.trim()) errors.industry = "Industry is required";
-    if (!businessInfo.registrationNumber.trim())
-      errors.registrationNumber = "Registration number is required";
-    if (!businessInfo.taxId.trim()) errors.taxId = "Tax ID is required";
-    if (!businessInfo.address.trim()) errors.address = "Address is required";
-    if (!businessInfo.city.trim()) errors.city = "City is required";
-    if (!businessInfo.country.trim()) errors.country = "Country is required";
-    if (!businessInfo.employeeCount.trim())
-      errors.employeeCount = "Employee count is required";
 
     setBusinessErrors(errors);
     return Object.keys(errors).length === 0;
@@ -154,12 +238,32 @@ export const RegistrationForm = () => {
   };
 
   const handleSubmit = () => {
-    console.log("Registration data:", {
-      personalInfo,
-      businessFlow,
-      businessInfo:
-        businessFlow === "new" ? businessInfo : { selectedBusiness },
-    });
+    const run = async () => {
+      try {
+        const res = await fetch("/api/register/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: personalInfo.email,
+            password: personalInfo.password,
+            personalInfo,
+            businessFlow,
+            selectedBusinessId: businessFlow === "existing" ? selectedBusiness : null,
+            businessInfo: businessFlow === "new" ? businessInfo : null,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || "Registration failed");
+        // Clear local draft
+        localStorage.removeItem(localStorageKey);
+        // Redirect to login or dashboard
+        window.location.href = "/login";
+      } catch (e) {
+        console.error(e);
+        alert((e as Error).message);
+      }
+    };
+    run();
   };
 
   const renderCurrentStep = () => {
@@ -230,7 +334,7 @@ export const RegistrationForm = () => {
 
         {renderCurrentStep()}
 
-        <div className="flex justify-between mt-8 max-w-md mx-auto">
+        <div className="flex justify-between mt-8 max-w-md lg:max-w-2xl mx-auto">
           <Button
             variant="outline"
             onClick={handleBack}
