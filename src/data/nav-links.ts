@@ -22,7 +22,7 @@ export const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "dashboard",
       icon: IconDashboard,
     },
     {
@@ -92,12 +92,12 @@ export const data = {
   navSecondary: [
     {
       title: "Settings",
-      url: "#",
+      url: "/settings",
       icon: IconSettings,
     },
     {
       title: "Get Help",
-      url: "#",
+      url: "/get-help",
       icon: IconHelp,
     },
     {
