@@ -5,15 +5,25 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const email = (searchParams.get("email") || "").toLowerCase().trim();
   if (!email) return NextResponse.json({ error: "email is required" }, { status: 400 });
-
-  const draft = await prisma.registrationDraft.findUnique({ where: { email } });
-  return NextResponse.json({ draft });
+  const draft = await prisma.registrationDraft.findFirst({
+    where: {
+      email,
+      completed: false,
+    },
+  });
+  return NextResponse.json({ draft: draft || null });
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
   const email = (body.email || "").toLowerCase().trim();
   if (!email) return NextResponse.json({ error: "email is required" }, { status: 400 });
+
+  // If a completed draft exists, do not allow creating/updating another draft
+  const existing = await prisma.registrationDraft.findUnique({ where: { email } });
+  if (existing?.completed) {
+    return NextResponse.json({ error: "registration already completed" }, { status: 409 });
+  }
 
   const draft = await prisma.registrationDraft.upsert({
     where: { email },
@@ -23,7 +33,7 @@ export async function POST(req: Request) {
       personalInfo: body.personalInfo ?? undefined,
       businessInfo: body.businessInfo ?? undefined,
       selectedBusinessId: body.selectedBusinessId ?? undefined,
-      completed: body.completed ?? undefined,
+      completed: false,
     },
     create: {
       email,
@@ -32,6 +42,7 @@ export async function POST(req: Request) {
       personalInfo: body.personalInfo ?? null,
       businessInfo: body.businessInfo ?? null,
       selectedBusinessId: body.selectedBusinessId ?? null,
+      completed: false,
     },
   });
 
@@ -43,6 +54,12 @@ export async function PATCH(req: Request) {
   const email = (body.email || "").toLowerCase().trim();
   if (!email) return NextResponse.json({ error: "email is required" }, { status: 400 });
 
+  // If a completed draft exists, do not allow further updates
+  const existing = await prisma.registrationDraft.findUnique({ where: { email } });
+  if (existing?.completed) {
+    return NextResponse.json({ error: "registration already completed" }, { status: 409 });
+  }
+
   const draft = await prisma.registrationDraft.update({
     where: { email },
     data: {
@@ -51,7 +68,7 @@ export async function PATCH(req: Request) {
       personalInfo: body.personalInfo ?? undefined,
       businessInfo: body.businessInfo ?? undefined,
       selectedBusinessId: body.selectedBusinessId ?? undefined,
-      completed: body.completed ?? undefined,
+      completed: false,
     },
   });
 

@@ -112,7 +112,8 @@ export const RegistrationForm = () => {
           businessFlow,
           personalInfo,
           businessInfo,
-          selectedBusinessId: businessFlow === "existing" ? selectedBusiness : null,
+          selectedBusinessId:
+            businessFlow === "existing" ? selectedBusiness : null,
         }),
       });
     } catch (_) {
@@ -120,34 +121,56 @@ export const RegistrationForm = () => {
     } finally {
       savingRef.current = false;
     }
-  }, [personalInfo.email, currentStep, businessFlow, personalInfo, businessInfo, selectedBusiness]);
+  }, [
+    personalInfo.email,
+    currentStep,
+    businessFlow,
+    personalInfo,
+    businessInfo,
+    selectedBusiness,
+  ]);
 
   // Load draft on mount (server by email param, else local)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const emailParam = params.get("email");
+    const emailParam = (params.get("email") || "").toLowerCase().trim();
     const load = async () => {
       try {
-        if (emailParam) {
-          const res = await fetch(`/api/register/draft?email=${encodeURIComponent(emailParam)}`);
+        const local = localStorage.getItem(localStorageKey);
+        const localDraft = local ? JSON.parse(local) : null;
+        const localEmail = (localDraft?.personalInfo?.email || "")
+          .toLowerCase()
+          .trim();
+
+        const targetEmail = emailParam || localEmail;
+        if (targetEmail) {
+          const res = await fetch(
+            `/api/register/draft?email=${encodeURIComponent(targetEmail)}`
+          );
           const json = await res.json();
           if (json?.draft) {
             const d = json.draft;
             setCurrentStep(d.step || 1);
             setBusinessFlow(d.businessFlow ?? null);
-            if (d.personalInfo) setPersonalInfo((p) => ({ ...p, ...d.personalInfo }));
-            if (d.businessInfo) setBusinessInfo((b) => ({ ...b, ...d.businessInfo }));
+            if (d.personalInfo)
+              setPersonalInfo((p) => ({ ...p, ...d.personalInfo }));
+            if (d.businessInfo)
+              setBusinessInfo((b) => ({ ...b, ...d.businessInfo }));
             if (d.selectedBusinessId) setSelectedBusiness(d.selectedBusinessId);
             return;
           }
+          localStorage.removeItem(localStorageKey);
+          return;
         }
-        const local = localStorage.getItem(localStorageKey);
-        if (local) {
-          const d = JSON.parse(local);
+
+        if (!targetEmail && localDraft) {
+          const d = localDraft;
           if (d.step) setCurrentStep(d.step);
-          if (d.businessFlow) setBusinessFlow(d.businessFlow);
-          if (d.personalInfo) setPersonalInfo((p) => ({ ...p, ...d.personalInfo }));
-          if (d.businessInfo) setBusinessInfo((b) => ({ ...b, ...d.businessInfo }));
+          if (d.businessFlow !== undefined) setBusinessFlow(d.businessFlow);
+          if (d.personalInfo)
+            setPersonalInfo((p) => ({ ...p, ...d.personalInfo }));
+          if (d.businessInfo)
+            setBusinessInfo((b) => ({ ...b, ...d.businessInfo }));
           if (d.selectedBusiness) setSelectedBusiness(d.selectedBusiness);
         }
       } catch (_) {}
@@ -155,8 +178,6 @@ export const RegistrationForm = () => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Autosave on key changes
   useEffect(() => {
     saveDraftLocal();
     const t = setTimeout(() => {
@@ -248,7 +269,8 @@ export const RegistrationForm = () => {
             password: personalInfo.password,
             personalInfo,
             businessFlow,
-            selectedBusinessId: businessFlow === "existing" ? selectedBusiness : null,
+            selectedBusinessId:
+              businessFlow === "existing" ? selectedBusiness : null,
             businessInfo: businessFlow === "new" ? businessInfo : null,
           }),
         });

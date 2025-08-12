@@ -118,4 +118,16 @@ export const data = {
       icon: IconReport,
     },
   ],
+  business: [
+    {
+      name: "Business profile",
+      url: "#",
+      icon: IconDatabase,
+    },
+    {
+      name: "Business settings",
+      url: "#",
+      icon: IconReport,
+    },
+  ],
 };
